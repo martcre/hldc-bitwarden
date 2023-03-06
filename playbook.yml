@@ -1,0 +1,60 @@
+---
+- name: "HLDC-Traefik"
+  hosts: localhost
+  connection: local
+  vars:
+    - install_dir: /usr/local/etc/vault
+    - bitwarden_data_dir: /opt/vault/data
+  tasks:
+
+  - name: "Print Vars"
+    debug:
+      msg: "install_dir = {{ install_dir }}"
+      msg: "bitwarden_data_dir = {{ bitwarden_data_dir }}"
+
+  - name: "Create app directory"
+    file:
+      path: "{{ install_dir }}"
+      state: directory
+      owner: root
+      group: root
+      mode: 0755
+
+  - name: "Create Bitwarden data directory"
+    file:
+      path: "{{ bitwarden_data_dir }}"
+      state: directory
+      owner: root
+      group: root
+      mode: 0755
+
+  - name: "Tear down existing services"
+    community.docker.docker_compose:
+      project_src: "{{ install_dir }}"
+      state: absent
+    ignore_errors: true
+
+  - name: "Copy files"
+    copy:
+      src: "{{ item }}"
+      dest: "{{ install_dir }}/{{ item }}"
+    loop:
+      - docker-compose.yml
+      - .env.example
+
+  - name: "Secure .env and .env.example files"
+    file:
+      path: "{{ install_dir }}/{{ item }}"
+      state: file
+      owner: root
+      group: root
+      mode: 0600
+    loop:
+      - .env
+      - .env.example
+    ignore_errors: true
+
+  - name: "Put up services"
+    community.docker.docker_compose:
+      project_src: "{{  install_dir }}"
+      state: present
